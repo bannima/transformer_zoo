@@ -1,5 +1,9 @@
 ## Transformer Implementation of `Attention is all you need`
 
+### A First Example
+```angular2html
+>>> python first_example.py
+```
 
 ### References
 - [The Annotated Transformer](http://nlp.seas.harvard.edu/2018/04/03/attention.html)

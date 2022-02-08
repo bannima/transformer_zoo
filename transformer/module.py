@@ -29,15 +29,15 @@ def clones(module,N):
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 def attention(query,key,value,mask=None,dropout=None):
-    " Compute `Scaled Dot Porduct Attention`"
+    " Compute `Multi-head Scaled Dot Porduct Attention`"
     d_k = query.size(-1) #dimension of queries and keys
-    scores = torch.matmul(query,key.transpose(-2,-1))/math.sqrt(d_k)
+    scores = torch.matmul(query,key.transpose(-2,-1))/math.sqrt(d_k) # query (Batch x h x max_Seq x d_k)=(30,8,10,64) , multi-head attention
     if mask is not None:
         scores = scores.masked_fill(mask==0,-1e9) #fill the mask place with -inf
-    p_attn = F.softmax(scores,dim=-1) # softmax ,note that exp(-inf)=0
+    p_attn = F.softmax(scores,dim=-1) # softmax ,note that exp(-inf)=0, scores( batch x h x max_seq x max_seq ),
     if dropout is not None:
         p_attn = dropout(p_attn)
-    return torch.matmul(p_attn,value),p_attn
+    return torch.matmul(p_attn,value),p_attn #p_attn(30 x8 x 10 x 10), value(30 x 8 x 10 x 64) = (30,8,10,64)
 
 class LayerNorm(nn.Module):
     " Construct a layernorm module "
@@ -154,7 +154,7 @@ class MultiHeadAttention(nn.Module):
         assert d_model % h ==0
         self.d_k = d_model//h
         self.h = h
-        self.linears = clones(nn.Linear(d_model,d_model),4)
+        self.linears = clones(nn.Linear(d_model,d_model),4) # W_Q,W_K,W_V
         self.attn = None
         self.dropout = nn.Dropout(dropout)
 
@@ -172,7 +172,7 @@ class MultiHeadAttention(nn.Module):
         x,self.attn = attention(query,key,value,mask=mask,dropout=self.dropout)
 
         # 3) "Concat " using a view and apply a final linear
-        x = x.transpose(1,2).contiguous().view(nbatches,-1,self.h*self.d_k)
+        x = x.transpose(1,2).contiguous().view(nbatches,-1,self.h*self.d_k) # d_model = h x d_k = 8 x 64 = 512
         return self.linears[-1](x)
 
 class PositionwiseFeedFoward(nn.Module):
@@ -216,7 +216,16 @@ class PositionalEncoding(nn.Module):
 
 # Full Model
 def make_model(src_vocab,tgt_vocab,N=6,d_model=512,d_ff=2048,h=8,dropout=0.1):
-    " Construct a model from hyperparaneters "
+    '''
+    r`Construct a model from hyperparaneters`
+    :param src_vocab: vocab size of source
+    :param tgt_vocab: vocab size of target
+    :param N: number of encoder & decoder stack
+    :param d_model: the model size, 512
+    :param d_ff: feedfoward hidden layer size,2048
+    :param h: number of multi-head , 8
+    :param dropout: dropout rate, 0.1
+    '''
     c = copy.deepcopy
     attn = MultiHeadAttention(h,d_model)
     ff = PositionwiseFeedFoward(d_model,d_ff,dropout)
@@ -236,10 +245,10 @@ def make_model(src_vocab,tgt_vocab,N=6,d_model=512,d_ff=2048,h=8,dropout=0.1):
     return model
 
 if __name__ == '__main__':
-    plt.figure(figsize=(5,5))
-    mask = subsequent_mask(10)
-    plt.imshow(mask[0])
-    plt.show()
+    # plt.figure(figsize=(5,5))
+    # mask = subsequent_mask(10)
+    # plt.imshow(mask[0])
+    # plt.show()
 
     # plt.figure(figsize=(15,5))
     # pe = PositionalEncoding(20,0)
